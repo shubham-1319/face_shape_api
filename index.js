@@ -9,7 +9,7 @@ const dotenv = require("dotenv");
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 8080; // Use the Railway-provided port
+const PORT = process.env.PORT || 8080;
 
 // Multer setup for handling file uploads with file type validation
 const upload = multer({
@@ -18,7 +18,6 @@ const upload = multer({
     const fileTypes = /jpeg|jpg|png/;
     const mimeType = fileTypes.test(file.mimetype);
     const extName = fileTypes.test(file.originalname.split(".").pop().toLowerCase());
-
     if (mimeType && extName) {
       return cb(null, true);
     }
@@ -26,17 +25,12 @@ const upload = multer({
   },
 });
 
-// Root Endpoint for checking server status
-app.get("/", (req, res) => {
-  res.status(200).send("Server is running!");
-});
-
 // API Endpoint for detecting face shape
 app.post("/detect-face-shape", upload.single("image"), async (req, res) => {
   try {
     console.log("Received request for /detect-face-shape");
 
-    // Step 1: Check if an image file was uploaded
+    // Check if an image file was uploaded
     if (!req.file) {
       console.error("No image uploaded");
       return res.status(400).json({ error: "No image uploaded" });
@@ -44,27 +38,20 @@ app.post("/detect-face-shape", upload.single("image"), async (req, res) => {
 
     console.log("File uploaded:", req.file.originalname);
 
-    // Step 2: Read the uploaded file into a buffer
     const imagePath = req.file.path;
-    let imageBuffer;
-    try {
-      imageBuffer = fs.readFileSync(imagePath);
-    } catch (readError) {
-      console.error("Error reading uploaded image:", readError.message);
-      return res.status(500).json({ error: "Failed to read the uploaded image" });
-    }
+    const imageBuffer = fs.readFileSync(imagePath);
 
-    // Step 3: Create FormData with the image buffer
+    // Create a FormData instance and append the image buffer
     const formData = new FormData();
     formData.append("image", imageBuffer, req.file.originalname);
 
-    // Step 4: Set up the request options for RapidAPI
+    // Set up the request options for RapidAPI
     const options = {
       method: "POST",
-      url: `https://${process.env.RAPIDAPI_HOST}/v1/detect`,
+      url: "https://face-shape-detection.p.rapidapi.com/v1/detect", // Adjust this URL as per your RapidAPI documentation
       headers: {
-        "X-RapidAPI-Key": process.env.RAPIDAPI_KEY,
-        "X-RapidAPI-Host": process.env.RAPIDAPI_HOST,
+        "X-RapidAPI-Key": "ecc9db9954mshbcd73740f511dddp10b2a3jsnecbeebccb59e",
+        "X-RapidAPI-Host": "face-shape-detection.p.rapidapi.com",
         ...formData.getHeaders(),
       },
       data: formData,
@@ -74,40 +61,35 @@ app.post("/detect-face-shape", upload.single("image"), async (req, res) => {
 
     console.log("Sending request to RapidAPI...");
 
-    // Step 5: Make the API request to RapidAPI
-    let apiResponse;
-    try {
-      apiResponse = await axios(options);
-    } catch (apiError) {
-      console.error("Error calling RapidAPI:", apiError.message);
+    // Send the request to RapidAPI
+    const response = await axios(options);
+    console.log("Received response from RapidAPI:", response.data);
 
-      // Handle errors from the API response
-      if (apiError.response) {
-        console.error("API response error:", apiError.response.data);
-        return res.status(apiError.response.status).json(apiError.response.data);
-      }
-      return res.status(500).json({ error: "Failed to detect face shape" });
-    }
+    // Clean up the uploaded file after processing
+    fs.unlinkSync(imagePath);
 
-    console.log("Response from RapidAPI received:", apiResponse.data);
-
-    // Step 6: Clean up by deleting the uploaded file after processing
-    try {
-      fs.unlinkSync(imagePath);
-    } catch (deleteError) {
-      console.error("Error deleting the uploaded file:", deleteError.message);
-    }
-
-    // Step 7: Send the successful response back to the client
-    return res.status(200).json(apiResponse.data);
-
+    // Send the response back to the client
+    return res.status(200).json(response.data);
   } catch (error) {
-    console.error("Unexpected error during face shape detection:", error.message);
-    return res.status(500).json({ error: "An unexpected error occurred" });
+    console.error("Error during face shape detection:", error.message);
+
+    // Handle errors from the API response
+    if (error.response) {
+      console.error("API response error:", error.response.data);
+      return res.status(error.response.status).json(error.response.data);
+    }
+
+    // Handle other errors
+    return res.status(500).json({ error: "Face shape detection failed" });
   }
 });
 
-// Start the server on the correct port
+// Root route to verify server is running
+app.get("/", (req, res) => {
+  res.send("Face Shape Detection API is running!");
+});
+
+// Start the server
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
