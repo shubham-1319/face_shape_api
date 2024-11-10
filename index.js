@@ -9,7 +9,7 @@ const dotenv = require("dotenv");
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 5000;  // Use the port from the environment
+const PORT = process.env.PORT || 8080;
 
 // Multer setup for handling file uploads with file type validation
 const upload = multer({
@@ -26,75 +26,71 @@ const upload = multer({
   },
 });
 
+// Serve a basic HTML form to upload an image
+app.get("/", (req, res) => {
+  const htmlForm = `
+    <html>
+      <body>
+        <h2>Upload Image for Face Shape Detection</h2>
+        <form action="/detect-face-shape" method="POST" enctype="multipart/form-data">
+          <label for="image">Select Image:</label>
+          <input type="file" name="image" id="image" accept="image/*" required>
+          <br>
+          <button type="submit">Upload</button>
+        </form>
+      </body>
+    </html>
+  `;
+  res.send(htmlForm);
+});
+
 // API Endpoint for detecting face shape
 app.post("/detect-face-shape", upload.single("image"), async (req, res) => {
   try {
-    // Check if an image file is uploaded
     if (!req.file) {
-      console.error("No image uploaded");
-      return res.status(400).json({ error: "No image uploaded" });
+      return res.status(400).send("No image uploaded");
     }
 
-    console.log("File uploaded:", req.file.originalname);
-
-    // Path to the uploaded image file
     const imagePath = req.file.path;
     const imageBuffer = fs.readFileSync(imagePath);
 
-    // Create FormData instance and append the image buffer
     const formData = new FormData();
     formData.append("image", imageBuffer, req.file.originalname);
 
-    // Prepare the options for the RapidAPI request
     const options = {
       method: "POST",
-      url: `https://face-shape-detection.p.rapidapi.com/v1/detect`, // Ensure this is the correct URL
+      url: `https://rapidapi.com/your-rapidapi-endpoint-here`, // Replace with your actual endpoint
       headers: {
-        "X-RapidAPI-Key": process.env.RAPIDAPI_KEY,  // Use your RapidAPI Key from the environment variables
-        "X-RapidAPI-Host": process.env.RAPIDAPI_HOST,  // The host name of the API
+        "X-RapidAPI-Key": process.env.RAPIDAPI_KEY,
+        "X-RapidAPI-Host": process.env.RAPIDAPI_HOST,
         ...formData.getHeaders(),
       },
       data: formData,
-      timeout: 30000,  // Set a timeout for the request (30 seconds)
-      maxBodyLength: Infinity,
-      maxContentLength: Infinity,
     };
 
-    console.log("Sending request to RapidAPI...");
-
-    // Send the request to RapidAPI
     const response = await axios(options);
 
-    // Log the full response for debugging
-    console.log("Full Response from RapidAPI:", JSON.stringify(response.data, null, 2));
-
-    // Clean up: Delete the uploaded image after processing
+    // Clean up the uploaded file after processing
     fs.unlinkSync(imagePath);
 
-    // Return the response data to the client
-    return res.status(200).json(response.data);
+    // Return a success message and face shape details
+    res.send(`
+      <html>
+        <body>
+          <h2>Face Shape Detection Result</h2>
+          <pre>${JSON.stringify(response.data, null, 2)}</pre>
+          <br>
+          <a href="/">Upload another image</a>
+        </body>
+      </html>
+    `);
   } catch (error) {
     console.error("Error during face shape detection:", error.message);
-
-    // If there's a response from the API, log and return the error
-    if (error.response) {
-      console.error("API response error:", error.response.data);
-      return res.status(error.response.status).json(error.response.data);
-    }
-
-    // If no response received from the API
-    if (error.request) {
-      console.error("No response received from API:", error.request);
-      return res.status(502).json({ error: "No response from the API" });
-    }
-
-    // Handle other errors
-    console.error("Error:", error.message);
-    return res.status(500).json({ error: "Server error" });
+    return res.status(500).send("Face shape detection failed");
   }
 });
 
-// Start the server on the correct port
+// Start the server
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
