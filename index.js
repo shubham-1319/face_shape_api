@@ -59,10 +59,10 @@ app.post("/detect-face-shape", upload.single("image"), async (req, res) => {
 
     const options = {
       method: "POST",
-      url: `https://rapidapi.com/your-rapidapi-endpoint-here`, // Replace with your actual endpoint
+      url: `https://detect-face-shape.p.rapidapi.com/api/predict `, // Replace with your actual endpoint
       headers: {
-        "X-RapidAPI-Key": process.env.RAPIDAPI_KEY,
-        "X-RapidAPI-Host": process.env.RAPIDAPI_HOST,
+        "X-RapidAPI-Key": process.env.ecc9db9954mshbcd73740f511dddp10b2a3jsnecbeebccb59e,
+        "X-RapidAPI-Host": process.env.face-shape-detection.p.rapidapi.com,
         ...formData.getHeaders(),
       },
       data: formData,
