@@ -28,30 +28,22 @@ const upload = multer({
 // API Endpoint for detecting face shape
 app.post("/detect-face-shape", upload.single("image"), async (req, res) => {
   try {
-    console.log("Received request for /detect-face-shape");
-
-    // Check if an image file was uploaded
     if (!req.file) {
-      console.error("No image uploaded");
       return res.status(400).json({ error: "No image uploaded" });
     }
-
-    console.log("File uploaded:", req.file.originalname);
 
     const imagePath = req.file.path;
     const imageBuffer = fs.readFileSync(imagePath);
 
-    // Create a FormData instance and append the image buffer
     const formData = new FormData();
     formData.append("image", imageBuffer, req.file.originalname);
 
-    // Set up the request options for RapidAPI
     const options = {
       method: "POST",
-      url: "https://face-shape-detection.p.rapidapi.com/v1/detect", // Adjust this URL as per your RapidAPI documentation
+      url: "https://face-shape-detection.p.rapidapi.com/v1/detect", // Ensure this matches RapidAPI docs
       headers: {
-        "X-RapidAPI-Key": "ecc9db9954mshbcd73740f511dddp10b2a3jsnecbeebccb59e",
-        "X-RapidAPI-Host": "face-shape-detection.p.rapidapi.com",
+        "X-RapidAPI-Key": process.env.RAPIDAPI_KEY,
+        "X-RapidAPI-Host": process.env.RAPIDAPI_HOST,
         ...formData.getHeaders(),
       },
       data: formData,
@@ -63,33 +55,24 @@ app.post("/detect-face-shape", upload.single("image"), async (req, res) => {
 
     // Send the request to RapidAPI
     const response = await axios(options);
-    console.log("Received response from RapidAPI:", response.data);
+    console.log("Full Response from RapidAPI:", JSON.stringify(response.data, null, 2)); // Inspect response structure
 
     // Clean up the uploaded file after processing
     fs.unlinkSync(imagePath);
 
-    // Send the response back to the client
-    return res.status(200).json(response.data);
+    // Check if the response has a face shape result and send it
+    if (response.data && response.data.face_shape) {
+      return res.status(200).json(response.data.face_shape);
+    } else {
+      return res.status(200).json({ message: "No face shape detected" });
+    }
   } catch (error) {
     console.error("Error during face shape detection:", error.message);
-
-    // Handle errors from the API response
     if (error.response) {
       console.error("API response error:", error.response.data);
       return res.status(error.response.status).json(error.response.data);
     }
-
-    // Handle other errors
     return res.status(500).json({ error: "Face shape detection failed" });
   }
 });
 
-// Root route to verify server is running
-app.get("/", (req, res) => {
-  res.send("Face Shape Detection API is running!");
-});
-
-// Start the server
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
