@@ -9,7 +9,7 @@ const dotenv = require("dotenv");
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 5000;  // Use the port from the environment
+const PORT = process.env.PORT || 8080; // Use Railway's port if available
 
 // Multer setup for handling file uploads with file type validation
 const upload = multer({
@@ -17,9 +17,7 @@ const upload = multer({
   fileFilter: (req, file, cb) => {
     const fileTypes = /jpeg|jpg|png/;
     const mimeType = fileTypes.test(file.mimetype);
-    const extName = fileTypes.test(
-      file.originalname.split(".").pop().toLowerCase()
-    );
+    const extName = fileTypes.test(file.originalname.split(".").pop().toLowerCase());
 
     if (mimeType && extName) {
       return cb(null, true);
@@ -28,10 +26,14 @@ const upload = multer({
   },
 });
 
+// Root route to check if server is running
+app.get("/", (req, res) => {
+  res.status(200).send("Face Shape Detection API is running!");
+});
+
 // API Endpoint for detecting face shape
 app.post("/detect-face-shape", upload.single("image"), async (req, res) => {
   try {
-    // Log the request to ensure the endpoint is hit
     console.log("Received request for /detect-face-shape");
 
     if (!req.file) {
@@ -42,6 +44,7 @@ app.post("/detect-face-shape", upload.single("image"), async (req, res) => {
     const imagePath = req.file.path;
     const imageBuffer = fs.readFileSync(imagePath);
 
+    // Create a FormData instance with the image
     const formData = new FormData();
     formData.append("image", imageBuffer, req.file.originalname);
 
@@ -67,15 +70,22 @@ app.post("/detect-face-shape", upload.single("image"), async (req, res) => {
     // Clean up the uploaded file after processing
     fs.unlinkSync(imagePath);
 
-    // Send the response to the client
     return res.status(200).json(response.data);
   } catch (error) {
     console.error("Error during face shape detection:", error.message);
+
+    // Handle errors related to the API response
+    if (error.response) {
+      console.error("API response error:", error.response.data);
+      return res.status(error.response.status).json({ error: error.response.data });
+    }
+
+    console.error("Unexpected error:", error);
     return res.status(500).json({ error: "Face shape detection failed" });
   }
 });
 
-// Start the server on the correct port
+// Start the server on the specified port
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
