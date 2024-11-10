@@ -27,7 +27,7 @@ const upload = multer({
 });
 
 // Serve a basic HTML form to upload an image
-app.get("/", (req, res) => {
+app.post("/", (req, res) => {
   const htmlForm = `
     <html>
       <body>
