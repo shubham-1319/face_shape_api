@@ -9,12 +9,7 @@ const dotenv = require("dotenv");
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 5000;  // Use the port from the environment
-
-// Basic GET route for debugging (to check if the server is running)
-app.get("/", (req, res) => {
-  res.send("Server is up and running!");
-});
+const PORT = process.env.PORT || 5000; // Use the port from the environment
 
 // Multer setup for handling file uploads with file type validation
 const upload = multer({
@@ -38,9 +33,13 @@ app.post("/detect-face-shape", upload.single("image"), async (req, res) => {
   try {
     // Check if an image file was uploaded
     if (!req.file) {
+      console.error("No image uploaded");
       return res.status(400).json({ error: "No image uploaded" });
     }
 
+    console.log("File received:", req.file);
+
+    // Read the uploaded image file into a buffer
     const imagePath = req.file.path;
     const imageBuffer = fs.readFileSync(imagePath);
 
@@ -58,7 +57,12 @@ app.post("/detect-face-shape", upload.single("image"), async (req, res) => {
       data: formData,
     };
 
+    console.log("Sending request to RapidAPI...");
+
+    // Send the request to RapidAPI
     const response = await axios(options);
+
+    console.log("Response from RapidAPI:", response.data);
 
     // Clean up the uploaded file after processing
     fs.unlinkSync(imagePath);
@@ -66,6 +70,14 @@ app.post("/detect-face-shape", upload.single("image"), async (req, res) => {
     return res.status(200).json(response.data);
   } catch (error) {
     console.error("Error during face shape detection:", error.message);
+
+    // If the error comes from the API response
+    if (error.response) {
+      console.error("Error details:", error.response.data);
+      return res.status(error.response.status).json(error.response.data);
+    }
+
+    // Handle other errors
     return res.status(500).json({ error: "Face shape detection failed" });
   }
 });
