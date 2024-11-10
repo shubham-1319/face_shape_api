@@ -9,7 +9,7 @@ const dotenv = require("dotenv");
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 5000; // Use the port from the environment
+const PORT = process.env.PORT || 5000;  // Use the port from the environment
 
 // Multer setup for handling file uploads with file type validation
 const upload = multer({
@@ -31,21 +31,21 @@ const upload = multer({
 // API Endpoint for detecting face shape
 app.post("/detect-face-shape", upload.single("image"), async (req, res) => {
   try {
-    // Check if an image file was uploaded
+    // Log the request to ensure the endpoint is hit
+    console.log("Received request for /detect-face-shape");
+
     if (!req.file) {
       console.error("No image uploaded");
       return res.status(400).json({ error: "No image uploaded" });
     }
 
-    console.log("File received:", req.file);
-
-    // Read the uploaded image file into a buffer
     const imagePath = req.file.path;
     const imageBuffer = fs.readFileSync(imagePath);
 
     const formData = new FormData();
     formData.append("image", imageBuffer, req.file.originalname);
 
+    // Prepare the request options for RapidAPI
     const options = {
       method: "POST",
       url: `https://${process.env.RAPIDAPI_HOST}/v1/detect`,
@@ -67,17 +67,10 @@ app.post("/detect-face-shape", upload.single("image"), async (req, res) => {
     // Clean up the uploaded file after processing
     fs.unlinkSync(imagePath);
 
+    // Send the response to the client
     return res.status(200).json(response.data);
   } catch (error) {
     console.error("Error during face shape detection:", error.message);
-
-    // If the error comes from the API response
-    if (error.response) {
-      console.error("Error details:", error.response.data);
-      return res.status(error.response.status).json(error.response.data);
-    }
-
-    // Handle other errors
     return res.status(500).json({ error: "Face shape detection failed" });
   }
 });
